@@ -15,10 +15,103 @@ export TMWC_PASS
 '''
 
 def main(argv=None):
-    p4k = get_pitchfork_review_data()
-    p4k['text'] = format_review_data(p4k)
-    p4k_msg = make_msg(p4k)
-    send_email(p4k_msg)
+    tmwc = TellMeWhatsCool()
+    tmwc.get_review_data(['pitchfork'])
+    tmwc.format_review_data()
+    tmwc.send_email()
+
+class TellMeWhatsCool():
+    
+    def __init__(self):
+        self.data = dict()
+    
+    def get_review_data(self,sources):
+        for source in sources:
+            try:
+                # get the blob of data from a review site given the name
+                self.data[source] = getattr(self, 'get_' + source + '_review_data')()
+            except Exception:
+                print 'Unknown Review Site.'
+    
+    
+    def format_review_data(self):
+        """
+        Iterate through the review data, make a giant string out of all of it.
+        """
+        x = ''
+        for info in self.data.itervalues():            
+            x = x + info['name'] + ' Daily Summary\n\n'
+            for i in range(info['nvalues']):
+                x = x + '  ' + info['score'][i] +' - '+ info['artist'][i] + ' - ' + info['album'][i] + \
+                    '\n      ' + info['label'][i] + ', ' + info['year'][i] + '' + '\n\n'
+        self.body = x
+
+    def make_mime_message(self,body):
+        from email.MIMEText import MIMEText
+        from datetime import datetime
+        now = datetime.now()
+        
+        msg = MIMEText(body, 'plain', 'utf-8')
+        msg['Subject'] = 'Daily Review Summary - ' + now.strftime("%B %m, %Y")
+        msg['From'] = 'Tell Me What\'s Cool <tellmewhatscool@gmail.com>'
+        msg['To'] = 'cameron.bracken@gmail.com'
+        
+        self.msg = msg
+    
+    def send_email(self):
+        import smtplib
+        import os
+        
+        self.make_mime_message(self.body)
+        
+        s = smtplib.SMTP("smtp.gmail.com", 587)
+        s.ehlo()
+        s.starttls()
+        s.ehlo()
+
+        s.login(os.environ['TMWC_EMAIL'],os.environ['TMWC_PASS'])
+        s.sendmail(self.msg['From'],self.msg['To'],self.msg.as_string())
+    
+    def get_pitchfork_review_data(self):
+        import urllib2
+        from lxml import etree
+
+        url = 'http://pitchfork.com'
+
+        nvalues = 5
+        info = dict(
+            name = 'Pitchfork',
+            score = [],
+            album = [],
+            artist = [],
+            label = [],
+            year =  [],
+            nvalues = nvalues
+        )
+        response = urllib2.urlopen('http://pitchfork.com')
+        html = response.read()
+        tree = etree.HTML(html)
+        r = unique(tree.xpath("//div[@class='review-detail']/div/a"))
+
+        links = list()
+        for i in range(len(r)):
+            links.append(r[i].values()[0])
+        links = unique(links)[:nvalues]
+
+        for i in range(nvalues):
+            response = urllib2.urlopen(url + links[i])
+            html = response.read()
+            tree = etree.HTML(html)
+
+            info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text)
+            info['album'].append(tree.xpath("//ul[@class='review-meta']/li/div/h2")[0].text)
+            xx = tree.xpath("//ul[@class='review-meta']/li/div/h3")[0].text
+            info['label'].append(xx.partition(';')[0].strip())
+            info['year'].append(xx.partition(';')[2].strip())
+            info['score'].append(tree.xpath("//div[@class='info']/span")[0].text.strip())
+
+        return(info)
+
 
 def unique(inlist, keepstr=True):
     typ = type(inlist)
@@ -36,78 +129,6 @@ def unique(inlist, keepstr=True):
         if keepstr:
             inlist = ''.join(inlist)
     return inlist
-
-def get_pitchfork_review_data(dl_dir = 'dl'):
-    import urllib2
-    import os
-    from lxml import etree
-    
-    url = 'http://pitchfork.com'
-    
-    nvalues = 5
-    info = dict(
-        name = 'Pitchfork',
-        score = [],
-        album = [],
-        artist = [],
-        label = [],
-        year =  [],
-        nvalues = nvalues
-    )
-    response = urllib2.urlopen('http://pitchfork.com')
-    html = response.read()
-    tree = etree.HTML(html)
-    r = unique(tree.xpath("//div[@class='review-detail']/div/a"))
-    
-    links = list()
-    for i in range(len(r)):
-        links.append(r[i].values()[0])
-    links = unique(links)[:nvalues]
-    
-    for i in range(nvalues):
-        response = urllib2.urlopen(url + links[i])
-        html = response.read()
-        tree = etree.HTML(html)
-        
-        info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text)
-        info['album'].append(tree.xpath("//ul[@class='review-meta']/li/div/h2")[0].text)
-        xx = tree.xpath("//ul[@class='review-meta']/li/div/h3")[0].text
-        info['label'].append(xx.partition(';')[0].strip())
-        info['year'].append(xx.partition(';')[2].strip())
-        info['score'].append(tree.xpath("//div[@class='info']/span")[0].text.strip())
-    
-    return(info)
-
-def format_review_data(info):
-    x = info['name'] + ' Daily Summary\n\n'
-    for i in range(info['nvalues']):
-        x = x + '  ' + info['score'][i] +' - '+ info['artist'][i] + ' - ' + info['album'][i] + \
-            '\n      ' + info['label'][i] + ', ' + info['year'][i] + '' + '\n\n'
-    return(x)
-
-def make_msg(info):
-    from email.MIMEText import MIMEText
-    from datetime import datetime
-    now = datetime.now()
-    
-    msg = MIMEText(info['text'], 'plain', 'utf-8')
-    msg['Subject'] = 'Daily Review Summary - ' + now.strftime("%B %m, %Y")
-    msg['From'] = 'Tell Me What\'s Cool <tellmewhatscool@gmail.com>'
-    msg['To'] = 'cameron.bracken@gmail.com'
-    
-    return(msg)
-
-def send_email(msg):
-    import smtplib
-    import os
-    
-    s = smtplib.SMTP("smtp.gmail.com", 587)
-    s.ehlo()
-    s.starttls()
-    s.ehlo()
-
-    s.login(os.environ['TMWC_EMAIL'],os.environ['TMWC_PASS'])
-    s.sendmail(msg['From'],msg['To'],msg.as_string())
 
 if __name__ == "__main__":
     main()
