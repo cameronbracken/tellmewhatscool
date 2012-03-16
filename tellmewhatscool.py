@@ -52,7 +52,7 @@ class TellMeWhatsCool():
         now = datetime.now()
         
         msg = MIMEText(body, 'plain', 'utf-8')
-        msg['Subject'] = 'Daily Review Summary - ' + now.strftime("%B %m, %Y")
+        msg['Subject'] = 'Daily Review Summary - ' + now.strftime("%B %d, %Y")
         msg['From'] = 'Tell Me What\'s Cool <tellmewhatscool@gmail.com>'
         msg['To'] = 'cameron.bracken@gmail.com'
         
