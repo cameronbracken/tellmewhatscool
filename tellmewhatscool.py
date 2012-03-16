@@ -71,6 +71,7 @@ class TellMeWhatsCool():
 
         s.login(os.environ['TMWC_EMAIL'],os.environ['TMWC_PASS'])
         s.sendmail(self.msg['From'],self.msg['To'],self.msg.as_string())
+        s.close()
     
     def get_pitchfork_review_data(self):
         import urllib2
