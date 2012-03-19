@@ -42,8 +42,10 @@ class TellMeWhatsCool():
         for info in self.data.itervalues():            
             x = x + info['name'] + ' Daily Summary\n\n'
             for i in range(info['nvalues']):
-                x = x + '  ' + info['score'][i] +' - '+ info['artist'][i] + ' - ' + info['album'][i] + \
-                    '\n      ' + info['label'][i] + ', ' + info['year'][i] + '' + '\n\n'
+                x = x + '  ' + info['score'][i] +' - '+ info['artist'][i] + ' - ' + info['album'][i]
+                if info['flag'][i]:
+                    x = x + ' *' + info['flagcontent'][i] + '*'
+                x = x + '\n      ' + info['label'][i] + ', ' + info['year'][i] + '' + '\n\n'
         self.body = x
 
     def make_mime_message(self,body):
@@ -87,6 +89,8 @@ class TellMeWhatsCool():
             artist = [],
             label = [],
             year =  [],
+            flag = [],
+            flagcontent = [],
             nvalues = nvalues
         )
         response = urllib2.urlopen('http://pitchfork.com')
@@ -103,13 +107,24 @@ class TellMeWhatsCool():
             response = urllib2.urlopen(url + links[i])
             html = response.read()
             tree = etree.HTML(html)
+ 
+            # if the artist name is not a link then it is probably various
+            try:
+                info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text)
+            except:
+                info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1")[0].text)
 
-            info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text)
             info['album'].append(tree.xpath("//ul[@class='review-meta']/li/div/h2")[0].text)
             xx = tree.xpath("//ul[@class='review-meta']/li/div/h3")[0].text
             info['label'].append(xx.partition(';')[0].strip())
             info['year'].append(xx.partition(';')[2].strip())
             info['score'].append(tree.xpath("//div[@class='info']/span")[0].text.strip())
+            info['flagcontent'].append(tree.xpath("//div[@class='bnm-label']")[0].text.strip())
+            if info['flagcontent'] == '':
+                info['flag'].append(False)
+            else:
+                info['flag'].append(True)
+            #import pdb; pdb.set_trace()
 
         return(info)
 
