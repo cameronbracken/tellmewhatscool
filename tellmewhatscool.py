@@ -45,7 +45,9 @@ class TellMeWhatsCool():
                 x = x + '  ' + info['score'][i] +' - '+ info['artist'][i] + ' - ' + info['album'][i]
                 if info['flag'][i]:
                     x = x + ' *' + info['flagcontent'][i] + '*'
-                x = x + '\n      ' + info['label'][i] + ', ' + info['year'][i] + '' + '\n\n'
+                x = x + '\n      ' + info['label'][i] + ', ' + info['year'][i]
+		x = x + '\n      ' + info['url'] + info['links'][i] + '\n'
+		x = x + '\n'
         self.body = x
 
     def make_mime_message(self,body):
@@ -91,7 +93,9 @@ class TellMeWhatsCool():
             year =  [],
             flag = [],
             flagcontent = [],
-            nvalues = nvalues
+            nvalues = nvalues,
+	    links = [],
+	    url = url
         )
         response = urllib2.urlopen('http://pitchfork.com')
         html = response.read()
@@ -104,11 +108,13 @@ class TellMeWhatsCool():
         links = unique(links)[:nvalues]
 
         for i in range(nvalues):
+	    info['links'].append(links[i])
             response = urllib2.urlopen(url + links[i])
             html = response.read()
             tree = etree.HTML(html)
  
             # if the artist name is not a link then it is probably various
+	    # TODO: more than one artist (splits), currently returns first artist only
             try:
                 info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text)
             except:
@@ -120,7 +126,7 @@ class TellMeWhatsCool():
             info['year'].append(xx.partition(';')[2].strip())
             info['score'].append(tree.xpath("//div[@class='info']/span")[0].text.strip())
             info['flagcontent'].append(tree.xpath("//div[@class='bnm-label']")[0].text.strip())
-            if info['flagcontent'] == '':
+            if info['flagcontent'][0] == '':
                 info['flag'].append(False)
             else:
                 info['flag'].append(True)
