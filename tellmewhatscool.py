@@ -22,6 +22,8 @@ def main(argv=None):
     tmwc = TellMeWhatsCool()
     tmwc.get_review_data(['pitchfork'])
     tmwc.format_review_data()
+    tmwc.get_queries()
+    tmwc.send_queries()
     sent = tmwc.send_email()
     #print "Content-type: text/html"
     #print 
@@ -34,6 +36,7 @@ class TellMeWhatsCool():
     
     def __init__(self):
         self.data = dict()
+        self.queries = dict()
     
     def get_review_data(self,sources):
         for source in sources:
@@ -42,7 +45,65 @@ class TellMeWhatsCool():
                 self.data[source] = getattr(self, 'get_' + source + '_review_data')()
             except Exception:
                 print 'No new ' + source + ' data.'
+
+    def get_queries(self):
+        sources = self.data.keys()
+        for source in sources:
+            try:
+                # get the blob of data from a review site given the name
+                self.queries[source] = getattr(self, 'get_' + source + '_queries')()
+            except Exception:
+                print 'Error building queries.'
+
+    def get_pitchfork_queries(self):
+        q = []
+        from datetime import datetime
+        now = datetime.now()
+        info = self.data['pitchfork']
+
+        for i in range(info['nvalues']):
+            q.append('')
+            q[i] = 'insert into ratings (site, score, album, artist, label, year, '
+            q[i] = q[i] + 'flag, url, date_retrieved, date_released, date_reviewed) values ('
+            q[i] = q[i] + "'" + info['name'] + "',"
+            q[i] = q[i] + info['score'][i] + ","
+            q[i] = q[i] + "'" + info['album'][i] + "',"
+            q[i] = q[i] + "'" + info['artist'][i] + "',"
+            q[i] = q[i] + "'" + info['label'][i] + "',"
+            q[i] = q[i] + info['year'][i] + ","
+            q[i] = q[i] + "'" + info['flagcontent'][i] + "',"
+            q[i] = q[i] + "'" + info['url'] + info['links'][i] + "',"
+            q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "',"
+            q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "',"
+            q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "');"
+        return(q)
     
+    def send_queries(self):
+        import MySQLdb as mdb
+        import sys
+
+        con = None
+
+        try:
+
+            con = mdb.connect('localhost', 'bracken_tmwc', 
+                'iknowwhatscool', 'bracken_tmwc');
+            cur = con.cursor()
+            
+            #import pdb; pdb.set_trace() 
+
+            for queries in self.queries.itervalues():            
+                for i in range(len(queries)):
+                    cur.execute(queries[i])
+            
+        except mdb.Error, e:
+        
+            print "Error %d: %s" % (e.args[0],e.args[1])
+            
+        finally:    
+                
+            if con:    
+                con.close()
     
     def format_review_data(self):
         """
@@ -109,8 +170,8 @@ class TellMeWhatsCool():
             flag = [],
             flagcontent = [],
             nvalues = nvalues,
-	    links = [],
-	    url = url
+	        links = [],
+	        url = url
         )
         response = urllib2.urlopen('http://pitchfork.com')
         html = response.read()
