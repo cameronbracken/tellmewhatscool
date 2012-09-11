@@ -14,11 +14,21 @@ export TMWC_EMAIL
 export TMWC_PASS
 '''
 
+import cgi
+import cgitb; cgitb.enable()  # for troubleshooting
+
+
 def main(argv=None):
     tmwc = TellMeWhatsCool()
     tmwc.get_review_data(['pitchfork'])
     tmwc.format_review_data()
-    tmwc.send_email()
+    sent = tmwc.send_email()
+    #print "Content-type: text/html"
+    #print 
+    if(sent):
+        print "Sent."
+    else:
+        print "No new reviews today."
 
 class TellMeWhatsCool():
     
@@ -31,7 +41,7 @@ class TellMeWhatsCool():
                 # get the blob of data from a review site given the name
                 self.data[source] = getattr(self, 'get_' + source + '_review_data')()
             except Exception:
-                print 'Unknown Review Site.'
+                print 'No new ' + source + ' data.'
     
     
     def format_review_data(self):
@@ -65,17 +75,22 @@ class TellMeWhatsCool():
     def send_email(self):
         import smtplib
         import os
+       
+        should_send = (self.body != '')
+	#import pdb; pdb.set_trace() 
+        if(should_send):
+            self.make_mime_message(self.body)
         
-        self.make_mime_message(self.body)
-        
-        s = smtplib.SMTP("smtp.gmail.com", 587)
-        s.ehlo()
-        s.starttls()
-        s.ehlo()
+            s = smtplib.SMTP("smtp.gmail.com", 587)
+            s.ehlo()
+            s.starttls()
+            s.ehlo()
 
-        s.login(os.environ['TMWC_EMAIL'],os.environ['TMWC_PASS'])
-        s.sendmail(self.msg['From'],self.msg['To'],self.msg.as_string())
-        s.close()
+            s.login(os.environ['TMWC_EMAIL'],os.environ['TMWC_PASS'])
+            s.sendmail(self.msg['From'],self.msg['To'],self.msg.as_string())
+            s.close()
+
+        return(should_send)
     
     def get_pitchfork_review_data(self):
         import urllib2
