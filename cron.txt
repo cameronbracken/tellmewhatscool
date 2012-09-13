@@ -1,0 +1,1 @@
+0 8 * * 1-5 TMWC_EMAIL=tellmewhatscool@gmail.com TMWC_PASS=xxxxx /usr/local/bin/python2.7 /home/bracken/webapps/tellmewhatscool/tellmewhatscool/tellmewhatscool.py>/home/bracken/tellmewhatscool/tellmewhatscool/logs/`date +%Y_%m_%d.txt`

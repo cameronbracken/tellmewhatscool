@@ -83,27 +83,20 @@ class TellMeWhatsCool():
         import sys
 
         con = None
-
-        try:
-
-            con = mdb.connect('localhost', 'bracken_tmwc', 
+        con = mdb.connect('localhost', 'bracken_tmwc', 
                 'iknowwhatscool', 'bracken_tmwc');
-            cur = con.cursor()
-            
-            #import pdb; pdb.set_trace() 
+        cur = con.cursor()
 
-            for queries in self.queries.itervalues():            
-                for i in range(len(queries)):
-                    cur.execute(queries[i])
-            
-        except mdb.Error, e:
-        
-            print "Error %d: %s" % (e.args[0],e.args[1])
-            
-        finally:    
+        for queries in self.queries.itervalues():            
+            for i in range(len(queries)):
                 
-            if con:    
-                con.close()
+                try:
+                    #import pdb; pdb.set_trace() 
+                    cur.execute(queries[i])
+                except mdb.Error, e:
+                    print "Error %d: %s" % (e.args[0],e.args[1])
+        if con:    
+            con.close()
     
     def format_review_data(self):
         """
@@ -136,9 +129,11 @@ class TellMeWhatsCool():
     def send_email(self):
         import smtplib
         import os
-       
+        
         should_send = (self.body != '')
-	#import pdb; pdb.set_trace() 
+	
+        #import pdb; pdb.set_trace() 
+        
         if(should_send):
             self.make_mime_message(self.body)
         
