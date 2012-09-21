@@ -179,7 +179,7 @@ class TellMeWhatsCool():
         links = unique(links)[:nvalues]
 
         for i in range(nvalues):
-	    info['links'].append(links[i])
+            info['links'].append(links[i])
             response = urllib2.urlopen(url + links[i])
             html = response.read()
             tree = etree.HTML(html)

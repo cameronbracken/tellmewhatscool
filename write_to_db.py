@@ -19,8 +19,10 @@ query = 'insert into ratings (site,score,album,artist,label,year,flag,url,review
 cur = con.cursor()
 for i in reversed(range(len(lines))):
     try:
-	q = query + lines[i].strip() + ');'
-        cur.execute(q)
+        # skip first line
+        if(i > 0):
+            q = query + lines[i].strip() + ');'
+            cur.execute(q)
     except mdb.Error, e:
 
         print "Error %d: %s" % (e.args[0],e.args[1])
