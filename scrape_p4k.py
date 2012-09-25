@@ -76,7 +76,7 @@ def write_pitchfork_lines(info, f):
             "'"+info[i]['album']+"'"+','+
             "'"+info[i]['artist']+"'"+','+
             "'"+info[i]['label']+"'"+','+
-            info[i]['year']+','+
+            #info[i]['year']+','+
             "'"+info[i]['flagcontent']+"'"+','+
             "'"+info[i]['url']+info[i]['link']+"'"+','+
             "'"+info[i]['reviewer']+"'"+','+
@@ -94,7 +94,7 @@ def write_pitchfork_line(info, f):
         "'"+info['album']+"'"+','+
         "'"+info['artist']+"'"+','+
         "'"+info['label']+"'"+','+
-        info['year']+','+
+        #info['year']+','+
         "'"+info['flagcontent']+"'"+','+
         "'"+info['url']+info['link']+"'"+','+
         "'"+info['reviewer']+"'"+','+

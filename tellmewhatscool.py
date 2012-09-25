@@ -43,7 +43,7 @@ class TellMeWhatsCool():
             try:
                 # get the blob of data from a review site given the name
                 self.data[source] = getattr(self, 'get_' + source + '_review_data')()
-            except Exception:
+            except:
                 print 'No new ' + source + ' data.'
 
     def get_queries(self):
@@ -52,7 +52,7 @@ class TellMeWhatsCool():
             try:
                 # get the blob of data from a review site given the name
                 self.queries[source] = getattr(self, 'get_' + source + '_queries')()
-            except Exception:
+            except:
                 print 'Error building queries.'
 
     def get_pitchfork_queries(self):
@@ -61,18 +61,18 @@ class TellMeWhatsCool():
         now = datetime.now()
         info = self.data['pitchfork']
 
-        for i in range(info['nvalues']):
+        for i in range(len(info)):
             q.append('')
-            q[i] = 'insert into ratings (site, score, album, artist, label, year, '
+            q[i] = 'insert into ratings (site, score, album, artist, label, '
             q[i] = q[i] + 'flag, url, date_retrieved, date_released, date_reviewed) values ('
-            q[i] = q[i] + "'" + info['name'] + "',"
-            q[i] = q[i] + info['score'][i] + ","
-            q[i] = q[i] + "'" + info['album'][i] + "',"
-            q[i] = q[i] + "'" + info['artist'][i] + "',"
-            q[i] = q[i] + "'" + info['label'][i] + "',"
-            q[i] = q[i] + info['year'][i] + ","
-            q[i] = q[i] + "'" + info['flagcontent'][i] + "',"
-            q[i] = q[i] + "'" + info['url'] + info['links'][i] + "',"
+            q[i] = q[i] + "'" + info[i]['name'] + "',"
+            q[i] = q[i] + info[i]['score'] + ","
+            q[i] = q[i] + "'" + info[i]['album'].replace("\\",'\\\\').replace("'","\\'") + "',"
+            q[i] = q[i] + "'" + info[i]['artist'].replace("\\",'\\\\').replace("'","\\'") + "',"
+            q[i] = q[i] + "'" + info[i]['label'].replace("\\",'\\\\').replace("'","\\'") + "',"
+            #q[i] = q[i] + "'" + info[i]['year'] + "',"
+            q[i] = q[i] + "'" + info[i]['flagcontent'] + "',"
+            q[i] = q[i] + "'" + info[i]['url'] + info[i]['link'] + "',"
             q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "',"
             q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "',"
             q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "');"
@@ -104,14 +104,14 @@ class TellMeWhatsCool():
         """
         x = ''
         for info in self.data.itervalues():            
-            x = x + info['name'] + ' Daily Summary\n\n'
-            for i in range(info['nvalues']):
-                x = x + '  ' + info['score'][i] +' - '+ info['artist'][i] + ' - ' + info['album'][i]
-                if info['flag'][i]:
-                    x = x + ' *' + info['flagcontent'][i] + '*'
-                x = x + '\n      ' + info['label'][i] + ', ' + info['year'][i]
-		x = x + '\n      ' + info['url'] + info['links'][i] + '\n'
-		x = x + '\n'
+            x = x + info[0]['name'] + ' Daily Summary\n\n'
+            for i in range(len(info)):
+                x = x + '  ' + info[i]['score'] +' - '+ info[i]['artist'] + ' - ' + info[i]['album']
+                if info[i]['flag']:
+                    x = x + ' *' + info[i]['flagcontent'] + '*'
+                x = x + '\n      ' + info[i]['label'] + ', ' + info[i]['release_date'].strftime("%Y-%m-%d")
+                x = x + '\n      ' + info[i]['url'] + info[i]['link'] + '\n'
+                x = x + '\n'
         self.body = x
 
     def make_mime_message(self,body):
@@ -147,81 +147,87 @@ class TellMeWhatsCool():
             s.close()
 
         return(should_send)
-    
-    def get_pitchfork_review_data(self):
+
+    def get_pitchfork_review_links(self,limit):
         import urllib2
         from lxml import etree
-
-        url = 'http://pitchfork.com'
-
-        nvalues = 5
-        info = dict(
-            name = 'Pitchfork',
-            score = [],
-            album = [],
-            artist = [],
-            label = [],
-            year =  [],
-            flag = [],
-            flagcontent = [],
-            nvalues = nvalues,
-	        links = [],
-	        url = url
-        )
-        response = urllib2.urlopen('http://pitchfork.com')
+        path = 'http://pitchfork.com/reviews/albums/'
+        response = urllib2.urlopen(path)
         html = response.read()
         tree = etree.HTML(html)
-        r = unique(tree.xpath("//div[@class='review-detail']/div/a"))
+
+        r = tree.xpath("//div[@id='main']/ul/li/ul/li/a")
 
         links = list()
-        for i in range(len(r)):
+        for i in range(limit):
             links.append(r[i].values()[0])
-        links = unique(links)[:nvalues]
+        #links = unique(links)[:nvalues]
+        return(links)
 
-        for i in range(nvalues):
-            info['links'].append(links[i])
-            response = urllib2.urlopen(url + links[i])
-            html = response.read()
-            tree = etree.HTML(html)
- 
-            # if the artist name is not a link then it is probably various
-	    # TODO: more than one artist (splits), currently returns first artist only
-            try:
-                info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text)
-            except:
-                info['artist'].append(tree.xpath("//ul[@class='review-meta']/li/div/h1")[0].text)
+    def get_single_pitchfork_review(self,link):
+        import urllib2
+        from lxml import etree
+        from datetime import datetime
 
-            info['album'].append(tree.xpath("//ul[@class='review-meta']/li/div/h2")[0].text)
-            xx = tree.xpath("//ul[@class='review-meta']/li/div/h3")[0].text
-            info['label'].append(xx.partition(';')[0].strip())
-            info['year'].append(xx.partition(';')[2].strip())
-            info['score'].append(tree.xpath("//div[@class='info']/span")[0].text.strip())
-            info['flagcontent'].append(tree.xpath("//div[@class='bnm-label']")[0].text.strip())
-            if info['flagcontent'][0] == '':
-                info['flag'].append(False)
-            else:
-                info['flag'].append(True)
-            #import pdb; pdb.set_trace()
+        url = 'http://pitchfork.com'
+        info = dict(
+            name = 'Pitchfork',
+            score = '',
+            album = '',
+            artist = '',
+            label = '',
+            flag = False,
+            flagcontent = '',
+            link = link,
+            url = url,
+            reviewer = '',
+            review_date = '',
+            release_date = ''
+        )
+        
+        response = urllib2.urlopen(url + link)
+        html = response.read()
+        tree = etree.HTML(html)
 
+        # if the artist name is not a link then it is probably various
+        # TODO: more than one artist (splits), currently returns first artist only
+        # TODO: add date if year is missing
+        try:
+            info['artist'] = tree.xpath("//ul[@class='review-meta']/li/div/h1/a")[0].text
+        except:
+            info['artist'] = tree.xpath("//ul[@class='review-meta']/li/div/h1")[0].text
+
+        info['album'] = tree.xpath("//ul[@class='review-meta']/li/div/h2")[0].text
+        xx = tree.xpath("//ul[@class='review-meta']/li/div/h3")[0].text
+    
+        info['reviewer'] = tree.xpath("//address")[0].text
+        info['review_date'] = datetime.strptime(tree.xpath("//h4/span")[0].text, '%B %d, %Y')
+        info['label'] = xx.partition(';')[0].strip()
+
+            # if the year is year1/year2 then this is a reissue, need to change the release date
+        year = xx.partition(';')[2].strip()
+        if len(year) > 4:
+            info['release_date'] = datetime.strptime(year.partition('/')[2].strip()+'-01-01',"%Y-%m-%d")
+        else:
+            info['release_date'] = info['review_date']
+
+        info['score'] = tree.xpath("//div[@class='info']/span")[0].text.strip()
+        info['flagcontent'] = tree.xpath("//div[@class='bnm-label']")[0].text.strip()
+        if info['flagcontent'] == '':
+            info['flag'] = False
+        else:
+            info['flag'] = True
         return(info)
 
+    def get_pitchfork_review_data(self):
+        import urllib2
 
-def unique(inlist, keepstr=True):
-    typ = type(inlist)
-    if not typ == list:
-        inlist = list(inlist)
-    i = 0
-    while i < len(inlist):
-        try:
-            del inlist[inlist.index(inlist[i], i + 1)]
-        except:
-            i += 1
-    if not typ in (str, unicode):
-        inlist = typ(inlist)
-    else:
-        if keepstr:
-            inlist = ''.join(inlist)
-    return inlist
+        links = self.get_pitchfork_review_links(5)
+
+        info = []
+        for i in range(len(links)):
+            info.append(self.get_single_pitchfork_review(links[i]))
+        return(info)
 
 if __name__ == "__main__":
     main()
