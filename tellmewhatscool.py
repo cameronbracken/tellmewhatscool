@@ -64,7 +64,7 @@ class TellMeWhatsCool():
         for i in range(len(info)):
             q.append('')
             q[i] = 'insert into ratings (site, score, album, artist, label, '
-            q[i] = q[i] + 'flag, url, date_retrieved, date_released, date_reviewed) values ('
+            q[i] = q[i] + 'flag, reissue, url, date_retrieved, date_released, date_reviewed) values ('
             q[i] = q[i] + "'" + info[i]['name'] + "',"
             q[i] = q[i] + info[i]['score'] + ","
             q[i] = q[i] + "'" + info[i]['album'].replace("\\",'\\\\').replace("'","\\'") + "',"
@@ -72,6 +72,7 @@ class TellMeWhatsCool():
             q[i] = q[i] + "'" + info[i]['label'].replace("\\",'\\\\').replace("'","\\'") + "',"
             #q[i] = q[i] + "'" + info[i]['year'] + "',"
             q[i] = q[i] + "'" + info[i]['flagcontent'] + "',"
+            q[i] = q[i] + "'" + str(info[i]['reissue']) + "',"
             q[i] = q[i] + "'" + info[i]['url'] + info[i]['link'] + "',"
             q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "',"
             q[i] = q[i] + "'" + now.strftime("%Y-%m-%d") + "',"
@@ -182,7 +183,8 @@ class TellMeWhatsCool():
             url = url,
             reviewer = '',
             review_date = '',
-            release_date = ''
+            release_date = '',
+            reissue = False
         )
         
         response = urllib2.urlopen(url + link)
@@ -208,8 +210,10 @@ class TellMeWhatsCool():
         year = xx.partition(';')[2].strip()
         if len(year) > 4:
             info['release_date'] = datetime.strptime(year.partition('/')[2].strip()+'-01-01',"%Y-%m-%d")
+            info['reissue'] = True
         else:
             info['release_date'] = info['review_date']
+            info['reissue'] = False
 
         info['score'] = tree.xpath("//div[@class='info']/span")[0].text.strip()
         info['flagcontent'] = tree.xpath("//div[@class='bnm-label']")[0].text.strip()
@@ -217,6 +221,16 @@ class TellMeWhatsCool():
             info['flag'] = False
         else:
             info['flag'] = True
+
+        if info['flagcontent'] == 'Best New Reissue' or 'Box Set' in info['album'] or 'Reissue' in info['album']:
+            info['reissue'] = True
+
+        if 'Deluxe Edition' in info['album'] or 'Anniversary Edition' in info['album'] or 'Collectors Edition' in info['album']:
+            info['reissue'] = True
+
+        if 'reissues' in link;
+            info['reissue'] = True
+
         return(info)
 
     def get_pitchfork_review_data(self):

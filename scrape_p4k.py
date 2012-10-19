@@ -33,13 +33,14 @@ def get_single_pitchfork_review(link):
         album = '',
         artist = '',
         label = '',
-        year =  '',
         flag = False,
         flagcontent = '',
         link = link,
         url = url,
         reviewer = '',
-        review_date = ''
+        review_date = '',
+        release_date = '',
+        reissue = False
     )
     
     response = urllib2.urlopen(url + link)
@@ -56,28 +57,49 @@ def get_single_pitchfork_review(link):
 
     info['album'] = tree.xpath("//ul[@class='review-meta']/li/div/h2")[0].text
     xx = tree.xpath("//ul[@class='review-meta']/li/div/h3")[0].text
-    info['label'] = xx.partition(';')[0].strip()
-    info['year'] = xx.partition(';')[2].strip()
+
     info['reviewer'] = tree.xpath("//address")[0].text
     info['review_date'] = datetime.strptime(tree.xpath("//h4/span")[0].text, '%B %d, %Y')
+    info['label'] = xx.partition(';')[0].strip()
+
+        # if the year is year1/year2 then this is a reissue, need to change the release date
+    year = xx.partition(';')[2].strip()
+    if len(year) > 4:
+        info['release_date'] = datetime.strptime(year.partition('/')[2].strip()+'-01-01',"%Y-%m-%d")
+        info['reissue'] = 1
+    else:
+        info['release_date'] = info['review_date']
+        info['reissue'] = 0
+
     info['score'] = tree.xpath("//div[@class='info']/span")[0].text.strip()
     info['flagcontent'] = tree.xpath("//div[@class='bnm-label']")[0].text.strip()
     if info['flagcontent'] == '':
         info['flag'] = False
     else:
         info['flag'] = True
+
+    if info['flagcontent'] == 'Best New Reissue' or 'Box Set' in info['album'] or 'Reissue' in info['album']:
+        info['reissue'] = 1
+
+    if 'Deluxe Edition' in info['album'] or 'Anniversary Edition' in info['album'] or 'Collectors Edition' in info['album']:
+        info['reissue'] = 1
+
+    if 'reissues' in link:
+        info['reissue'] = 1
+
     return(info)
 
 def write_pitchfork_lines(info, f):
     now = datetime.now()
     for i in range(len(info)):
         line = ("'"+info[i]['name']+"'"+','+
-            info[i]['score']+"'"+','+
-            "'"+info[i]['album']+"'"+','+
-            "'"+info[i]['artist']+"'"+','+
-            "'"+info[i]['label']+"'"+','+
+            info[i]['score']+','+
+            "'"+info[i]['album'].replace("\\",'\\\\').replace("'","\\'")+"'"+','+
+            "'"+info[i]['artist'].replace("\\",'\\\\').replace("'","\\'")+"'"+','+
+            "'"+info[i]['label'].replace("\\",'\\\\').replace("'","\\'")+"'"+','+
             #info[i]['year']+','+
             "'"+info[i]['flagcontent']+"'"+','+
+            str(info[i]['reissue'])+','+
             "'"+info[i]['url']+info[i]['link']+"'"+','+
             "'"+info[i]['reviewer']+"'"+','+
             "'"+now.strftime("%Y-%m-%d")+"'"+','+
@@ -90,12 +112,13 @@ def write_pitchfork_lines(info, f):
 def write_pitchfork_line(info, f):
     now = datetime.now()
     line = ("'"+info['name']+"'"+','+
-        info['score']+"'"+','+
-        "'"+info['album']+"'"+','+
-        "'"+info['artist']+"'"+','+
-        "'"+info['label']+"'"+','+
+        info['score']+','+
+        "'"+info['album'].replace("\\",'\\\\').replace("'","\\'")+"'"+','+
+        "'"+info['artist'].replace("\\",'\\\\').replace("'","\\'")+"'"+','+
+        "'"+info['label'].replace("\\",'\\\\').replace("'","\\'")+"'"+','+
         #info['year']+','+
         "'"+info['flagcontent']+"'"+','+
+        str(info['reissue'])+','+
         "'"+info['url']+info['link']+"'"+','+
         "'"+info['reviewer']+"'"+','+
         "'"+now.strftime("%Y-%m-%d")+"'"+','+
@@ -114,7 +137,7 @@ def save_pitchfork_links(links_file):
     for i in range(1,680):
         path = 'http://pitchfork.com/reviews/albums/' + str(i) +'/'
         try:
-            print i
+            #print i
             links = get_pitchfork_review_links(path)
             write_lines(links,flinks)
             flinks.flush()
@@ -127,11 +150,11 @@ flinks = open(links_file, 'r')
 links = flinks.readlines()
 
 fdata = open(data_file, 'w')
-fdata.write('site,score,album,artist,label,year,flag,url,reviewer,date_retrieved,date_released,date_reviewed\n')
+fdata.write('site,score,album,artist,label,year,flag,reissue,url,reviewer,date_retrieved,date_released,date_reviewed\n')
 
 for i in range(len(links)):
     try:
-        print i
+        #print i
         info = get_single_pitchfork_review(links[i].strip())
         write_pitchfork_line(info,fdata)
     except:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python2.7
-# -*- coding: utf-8 -*-
 
 import MySQLdb as mdb
 import sys
@@ -15,7 +14,7 @@ con = mdb.connect('localhost', 'bracken_tmwc',
     'iknowwhatscool', 'bracken_tmwc',charset='utf8');
 
 
-query = 'insert into ratings (site,score,album,artist,label,year,flag,url,reviewer,date_retrieved,date_released,date_reviewed) values ('
+query = 'insert into ratings (site,score,album,artist,label,flag,reissue,url,reviewer,date_retrieved,date_released,date_reviewed) values ('
 cur = con.cursor()
 for i in reversed(range(len(lines))):
     try:
